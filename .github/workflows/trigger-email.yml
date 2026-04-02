@@ -23,11 +23,20 @@ jobs:
 
       - name: Install ODBC Driver 17 for SQL Server (Windows)
         run: |
-          # Download the Windows installer
-          curl -o C:\tmp\ODBC-17.10.1.1-1.x86_64.exe https://download.microsoft.com/download/7/1/3/713b5d7c-4c0e-4c35-8d6e-4a7d6a6c6a6e/ODBC-17.10.1.1-1.x86_64.exe
-
-          # Run the installer silently
-          C:\tmp\ODBC-17.10.1.1-1.x86_64.exe /quiet
+          # Create temp directory
+          mkdir -p C:\temp\odbc_driver
+          
+          # Download ODBC Driver MSI
+          curl -L -o "C:\temp\ODBC17.msi" "https://go.microsoft.com/fwlink/?linkid=2110802"
+          
+          # Verify download
+          dir C:\temp\
+          
+          # Install using msiexec
+          msiexec /i "C:\temp\ODBC17.msi" /quiet /norestart
+          
+          # Clean up installer
+          del C:\temp\ODBC17.msi
           
       - name: Run script
         run: |
