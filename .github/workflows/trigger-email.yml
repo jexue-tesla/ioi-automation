@@ -21,10 +21,14 @@ jobs:
         run: |
           pip install pandas sqlalchemy pyodbc requests
 
-      - name: Install ODBC Driver 17 for SQL Server
+      - name: Install ODBC Driver 17 for SQL Server (Windows)
         run: |
-          curl -o /tmp/odbcinst17.deb https://download.microsoft.com/download/7/1/3/713b5d7c-4c0e-4c35-8d6e-4a7d6a6c6a6e/ODBC-17.10.1.1-1.x86_64.deb
-          sudo dpkg -i /tmp/odbcinst17.deb
+          # Download the Windows installer
+          curl -o C:\tmp\ODBC-17.10.1.1-1.x86_64.exe https://download.microsoft.com/download/7/1/3/713b5d7c-4c0e-4c35-8d6e-4a7d6a6c6a6e/ODBC-17.10.1.1-1.x86_64.exe
+
+          # Run the installer silently
+          C:\tmp\ODBC-17.10.1.1-1.x86_64.exe /quiet
+          
       - name: Run script
         run: |
           python weeklyioi_updated_11.26.25.py
