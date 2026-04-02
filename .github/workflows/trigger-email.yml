@@ -38,6 +38,10 @@ jobs:
           # Clean up installer
           del C:\temp\ODBC17.msi
           
-      - name: Run script
+      - name: Run Python script
+        env:
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          POWER_AUTOMATE_WEBHOOK_URL: ${{ secrets.POWER_AUTOMATE_WEBHOOK_URL }}
         run: |
           python weeklyioi_updated_11.26.25.py
