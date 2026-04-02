@@ -1,0 +1,25 @@
+name: Trigger Power Automate Email
+
+on:
+  schedule:
+    - cron: '0 2 * * 6'  # Runs at 2:00 AM UTC on Saturday (6:00 PM PST on Friday)
+
+jobs:
+  trigger-flow:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'  # Use a stable version
+
+      - name: Install dependencies
+        run: |
+          pip install pandas sqlalchemy pyodbc
+
+      - name: Run script
+        run: |
+          python weeklyioi_updated_11.26.25.py
