@@ -21,10 +21,10 @@ jobs:
         run: |
           pip install pandas sqlalchemy pyodbc requests
 
-      - name: Test SQL Server Connectivity
-       run: |
-          ping -n 1 EDWPRDRPTDB.teslamotors.com
-
+      - name: Install ODBC Driver 17 for SQL Server
+        run: |
+          curl -o /tmp/odbcinst17.deb https://download.microsoft.com/download/7/1/3/713b5d7c-4c0e-4c35-8d6e-4a7d6a6c6a6e/ODBC-17.10.1.1-1.x86_64.deb
+          sudo dpkg -i /tmp/odbcinst17.deb
       - name: Run script
         run: |
           python weeklyioi_updated_11.26.25.py
