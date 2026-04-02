@@ -19,7 +19,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install pandas sqlalchemy pyodbc
+          pip install pandas sqlalchemy pyodbc requests
 
       - name: Run script
         run: |
