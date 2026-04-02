@@ -21,6 +21,10 @@ jobs:
         run: |
           pip install pandas sqlalchemy pyodbc requests
 
+      - name: Test SQL Server Connectivity
+       run: |
+          ping -n 1 EDWPRDRPTDB.teslamotors.com
+
       - name: Run script
         run: |
           python weeklyioi_updated_11.26.25.py
