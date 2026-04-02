@@ -9,20 +9,22 @@ import requests
 import sys
 
 # --- CONFIGURATION ---
-# PASTE YOUR POWER AUTOMATE WEBHOOK URL HERE
-POWER_AUTOMATE_WEBHOOK_URL = "https://default9026c5f486d04b9fbd39b7d4d0fb46.74.environment.api.powerplatform.com:443/powerautomate/automations/direct/workflows/3bb41d6aa7954f228ccebfd7f65a8448/triggers/manual/paths/invoke?api-version=1&sp=%2Ftriggers%2Fmanual%2Frun&sv=1.0&sig=tut4cDCfJzP0vzx-dOnegx5mk9_JOeONQUkXIx7pCdQ"
+# Get credentials from environment variables (set in GitHub Secrets)
+DB_USERNAME = os.getenv('DB_USERNAME', '')
+DB_PASSWORD = os.getenv('DB_PASSWORD', '')
+POWER_AUTOMATE_WEBHOOK_URL = os.getenv('POWER_AUTOMATE_WEBHOOK_URL', '')
 
 # Define database connection parameters
 db_config = {
     'server': 'EDWPRDRPTDB.teslamotors.com',
     'port': '1433',
     'database': 'master',
-    'driver': "ODBC Driver 17 for SQL Server"
+    'driver': "ODBC Driver 17 for SQL Server",
+    'username': DB_USERNAME,
+    'password': DB_PASSWORD
 }
 
-connection_string = f"mssql+pyodbc://{db_config['server']}:{db_config['port']}/{db_config['database']}?driver={db_config['driver'].replace(' ', '+')}"
-
-# Define a specific location for snapshots - CHANGE THIS PATH to a location you have access to
+# Define a specific location for snapshots
 SNAPSHOT_DIR = r"C:\Users\jexue\Projects\OneDrive_2025-09-22\Offline Repository\snapshots"
 
 sql_query_combined = """
@@ -166,19 +168,33 @@ ORDER BY
 """
 
 def get_campaign_data(sql_query):
+    """Connect to SQL Server and fetch campaign data with proper error handling."""
+    if not db_config['username'] or not db_config['password']:
+        raise ValueError("Database credentials not set. Please configure DB_USERNAME and DB_PASSWORD environment variables.")
+    
     connection_string = (
-        f"mssql+pyodbc://{db_config['server']}:{db_config['port']}/{db_config['database']}?driver={db_config['driver'].replace(' ', '+')}&trusted_connection=yes"
+        f"mssql+pyodbc://{db_config['username']}:{db_config['password']}"
+        f"@{db_config['server']}:{db_config['port']}/{db_config['database']}"
+        f"?driver={db_config['driver'].replace(' ', '+')}"
     )
+    
     engine = create_engine(connection_string)
     try:
         with engine.connect() as connection:
-            result = connection.execute(sa.text(sql_query))  # Use `sa.text()` for raw SQL
+            result = connection.execute(sa.text(sql_query))
             df = pd.DataFrame(result.fetchall(), columns=result.keys())
             return df
+    except Exception as e:
+        print(f"Database connection error: {str(e)}")
+        print(f"Server: {db_config['server']}")
+        print(f"Port: {db_config['port']}")
+        print(f"Database: {db_config['database']}")
+        raise
     finally:
         engine.dispose()
 
 def test_file_access():
+    """Test file system access."""
     try:
         if not os.path.exists(SNAPSHOT_DIR):
             os.makedirs(SNAPSHOT_DIR)
@@ -195,6 +211,7 @@ def test_file_access():
         return False
 
 def save_snapshot(df):
+    """Save campaign data snapshot."""
     try:
         if not os.path.exists(SNAPSHOT_DIR):
             os.makedirs(SNAPSHOT_DIR)
@@ -208,6 +225,7 @@ def save_snapshot(df):
         return None
 
 def get_previous_snapshot(days_ago=7):
+    """Get the closest previous snapshot."""
     target_date = datetime.today() - timedelta(days=days_ago)
     target_date_str = target_date.strftime('%Y-%m-%d')
     filename = os.path.join(SNAPSHOT_DIR, f'campaign_snapshot_{target_date_str}.pkl')
@@ -241,6 +259,7 @@ def get_previous_snapshot(days_ago=7):
     return None
 
 def should_show_models(title):
+    """Determine if models should be shown in campaign title."""
     model_patterns = [
         r'\bModel S\b', r'\bModel X\b', r'\bModel Y\b', r'\bModel 3\b',
         r'\bMS\b', r'\bMX\b', r'\bMY\b', r'\bM3\b',
@@ -252,6 +271,7 @@ def should_show_models(title):
     return True
 
 def format_report(df, previous_df=None):
+    """Format campaign data into HTML report."""
     today = datetime.today()
     days_since_saturday = (today.weekday() + 2) % 7
     start_of_week = today - timedelta(days=days_since_saturday)
@@ -361,14 +381,16 @@ def format_report(df, previous_df=None):
     return report
 
 def send_to_power_automate(webhook_url, report_html):
-    """Sends the generated HTML report to a Power Automate webhook."""
+    """Send HTML report to Power Automate webhook."""
+    if not webhook_url:
+        raise ValueError("POWER_AUTOMATE_WEBHOOK_URL environment variable not set.")
+    
     print("Sending report to Power Automate...")
     headers = {'Content-Type': 'application/json'}
     payload = {'emailBody': report_html}
     try:
-        # Disable SSL verification (use with caution, only as a temporary workaround)
         requests.packages.urllib3.disable_warnings()
-        response = requests.post(webhook_url, json=payload, headers=headers, verify=False)
+        response = requests.post(webhook_url, json=payload, headers=headers, verify=False, timeout=30)
         response.raise_for_status()
         print("Successfully sent report to Power Automate.")
     except requests.exceptions.RequestException as e:
@@ -376,18 +398,22 @@ def send_to_power_automate(webhook_url, report_html):
         sys.exit(1)
 
 def main():
+    """Main execution function."""
     if not POWER_AUTOMATE_WEBHOOK_URL:
-        print("Error: POWER_AUTOMATE_WEBHOOK_URL is not set. Please paste the URL into the script.")
-        return
+        print("Error: POWER_AUTOMATE_WEBHOOK_URL environment variable not set.")
+        sys.exit(1)
+    
     try:
         if not test_file_access():
             print("Exiting due to file access issues.")
-            return
+            sys.exit(1)
+        
         print("Fetching campaign data from database...")
         df = get_campaign_data(sql_query_combined)
+        
         if df.empty:
             print("No data returned. Check database connection or query. No report will be sent.")
-            return
+            sys.exit(0)
         
         save_snapshot(df)
         
@@ -401,6 +427,7 @@ def main():
             
     except Exception as e:
         print(f"An unexpected error occurred: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
