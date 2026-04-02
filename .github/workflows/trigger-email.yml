@@ -1,6 +1,7 @@
 name: Trigger Power Automate Email
 
 on:
+  workflow_dispatch:
   schedule:
     - cron: '0 2 * * 6'  # Runs at 2:00 AM UTC on Saturday (6:00 PM PST on Friday)
 
